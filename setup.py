@@ -9,19 +9,23 @@ from setuptools.command.build_py import build_py
 # Faiss conifgurations
 FAISS_INSTALL_PREFIX = os.getenv("FAISS_INSTALL_PREFIX", "/usr/local")
 FAISS_OPT_LEVEL = os.getenv("FAISS_OPT_LEVEL", "generic")
-FAISS_ENABLE_GPU = (os.getenv("FAISS_ENABLE_GPU", "").lower() in ("on", "true"))
+FAISS_ENABLE_GPU = os.getenv("FAISS_ENABLE_GPU", "").lower() in ("on", "true")
 
 # Common configurations
 FAISS_ROOT = "faiss"  # relative to the setup.py file
 
 DEFINE_MACROS = [("FINTEGER", "int")]
 INCLUDE_DIRS = [
-    np.get_include(), FAISS_ROOT, os.path.join(FAISS_INSTALL_PREFIX, "include")]
+    np.get_include(),
+    FAISS_ROOT,
+    os.path.join(FAISS_INSTALL_PREFIX, "include"),
+]
 LIBRARY_DIRS: List[str] = [os.path.join(FAISS_INSTALL_PREFIX, "lib")]
 EXTRA_COMPILE_ARGS: List[str] = []
 EXTRA_LINK_ARGS: List[str] = []
 SWIG_OPTS = ["-c++", "-Doverride=", "-doxygen", f"-I{FAISS_ROOT}"] + [
-    f"-I{x}" for x in INCLUDE_DIRS]
+    f"-I{x}" for x in INCLUDE_DIRS
+]
 
 # GPU options
 if FAISS_ENABLE_GPU:
@@ -39,15 +43,16 @@ def win32_options(
 ) -> dict:
     """Windows options."""
     return dict(
-        extra_compile_args=extra_compile_args + [
+        extra_compile_args=extra_compile_args
+        + [
             "/openmp:llvm",
             "/std:c++17",
             "/Zc:inline",
             "/wd4101",  # unreferenced local variable.
             "/MD",  # Bugfix: https://bugs.python.org/issue38597
         ],
-        extra_link_args=["/OPT:ICF", "/OPT:REF"] + (
-            extra_link_args or ["faiss.lib", "openblas.lib"]),
+        extra_link_args=["/OPT:ICF", "/OPT:REF"]
+        + (extra_link_args or ["faiss.lib", "openblas.lib"]),
         swig_opts=swig_opts + ["-DSWIGWIN"],
     )
 
@@ -71,7 +76,8 @@ def linux_options(
             "-lculibos",
         ]
     return dict(
-        extra_compile_args=extra_compile_args + [
+        extra_compile_args=extra_compile_args
+        + [
             "-std=c++17",
             "-Wno-sign-compare",
             "-fopenmp",
@@ -83,7 +89,8 @@ def linux_options(
             "-lrt",
             "-s",
             "-Wl,--gc-sections",
-        ] + (extra_link_args or default_link_args),
+        ]
+        + (extra_link_args or default_link_args),
         swig_opts=swig_opts + ["-DSWIGWORDSIZE64"],
     )
 
@@ -95,7 +102,8 @@ def darwin_options(
 ) -> dict:
     """macOS options."""
     return dict(
-        extra_compile_args=extra_compile_args + [
+        extra_compile_args=extra_compile_args
+        + [
             "-std=c++17",
             "-Wno-sign-compare",
             "-Xpreprocessor",
@@ -105,12 +113,16 @@ def darwin_options(
             "-Xpreprocessor",
             "-fopenmp",
             "-dead_strip",
-        ] + (extra_link_args or [
-            "-lfaiss",
-            "-lomp",
-            "-framework",
-            "Accelerate",
-        ]),
+        ]
+        + (
+            extra_link_args
+            or [
+                "-lfaiss",
+                "-lomp",
+                "-framework",
+                "Accelerate",
+            ]
+        ),
         swig_opts=swig_opts,
     )
 
@@ -155,35 +167,36 @@ def avx2_options(
     )
 
 
-def avx512_options(
-    extra_compile_args: List[str],
-    extra_link_args: List[str],
-    swig_opts: List[str],
-) -> dict:
-    """Add AVX512 extension options."""
-    if sys.platform == "win32":
-        flags = ["/arch:AVX512", "/bigobj"]
-    else:
-        flags = [
-            "-mavx2", "-mfma", "-mf16c", "-mavx512f", "-mavx512cd", "-mavx512vl",
-            "-mavx512dq", "-mavx512bw", "-mpopcnt"
-        ]
-    return dict(
-        name="faiss._swigfaiss_avx512",
-        extra_compile_args=extra_compile_args + flags,
-        extra_link_args=[x.replace("faiss", "faiss_avx512") for x in extra_link_args],
-        swig_opts=swig_opts + ["-module", "swigfaiss_avx512"],
-    )
+# def avx512_options(
+#     extra_compile_args: List[str],
+#     extra_link_args: List[str],
+#     swig_opts: List[str],
+# ) -> dict:
+#     """Add AVX512 extension options."""
+#     if sys.platform == "win32":
+#         flags = ["/arch:AVX512", "/bigobj"]
+#     else:
+#         flags = [
+#             "-mavx2", "-mfma", "-mf16c", "-mavx512f", "-mavx512cd", "-mavx512vl",
+#             "-mavx512dq", "-mavx512bw", "-mpopcnt"
+#         ]
+#     return dict(
+#         name="faiss._swigfaiss_avx512",
+#         extra_compile_args=extra_compile_args + flags,
+#         extra_link_args=[x.replace("faiss", "faiss_avx512") for x in extra_link_args],
+#         swig_opts=swig_opts + ["-module", "swigfaiss_avx512"],
+#     )
 
 
 OPT_CONFIGS = {
     "generic": [generic_options],
     "avx2": [generic_options, avx2_options],
-    "avx512": [generic_options, avx2_options, avx512_options],
+    # "avx512": [generic_options, avx2_options, avx512_options],
 }
 
 platform_config = PLATFORM_CONFIGS[sys.platform](
-    EXTRA_COMPILE_ARGS, EXTRA_LINK_ARGS, SWIG_OPTS)
+    EXTRA_COMPILE_ARGS, EXTRA_LINK_ARGS, SWIG_OPTS
+)
 
 ext_modules = [
     Extension(
@@ -204,6 +217,7 @@ ext_modules = [
 
 class CustomBuildPy(build_py):
     """Run build_ext before build_py to compile swig code."""
+
     def run(self):
         self.run_command("build_ext")
         return build_py.run(self)
